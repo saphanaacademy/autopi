@@ -1,0 +1,326 @@
+{
+    "id": "dpe-<<<TENANT_ID>>>",
+    "technicalName": "dpe",
+    "name": "DPE",
+    "description": "",
+    "owner": "<<<TENANT_ID>>>",
+    "inputs": [
+        {
+            "id": "dpe-<<<TENANT_ID>>>:dpe:1",
+            "name": "dpe",
+            "description": null,
+            "catalog": "dpe-<<<TENANT_ID>>>",
+            "owner": null,
+            "version": 1,
+            "keys": {
+                "password": {
+                    "type": "string",
+                    "sensitive": true,
+                    "description": null
+                },
+                "prefix": {
+                    "type": "string",
+                    "sensitive": false,
+                    "description": null
+                },
+                "appName": {
+                    "type": "string",
+                    "sensitive": false,
+                    "description": null
+                },
+                "datacenter": {
+                    "type": "string",
+                    "sensitive": false,
+                    "description": null
+                },
+                "user": {
+                    "type": "string",
+                    "sensitive": false,
+                    "description": null
+                },
+                "appPath": {
+                    "type": "string",
+                    "sensitive": false,
+                    "description": null
+                }
+            },
+            "values": {
+                "prefix": "dpe",
+                "appName": "",
+                "datacenter": "cf-",
+                "user": "",
+                "appPath": "",
+                "password": ""
+            },
+            "tags": {}
+        }
+    ],
+    "commands": [
+        {
+            "configuration": {
+                "values": [
+                    {
+                        "alias": "regionData",
+                        "valueFrom": {
+                            "inputReference": "metadata-sapcp:CfRegionData:1",
+                            "inputKey": "$(.execution.input.datacenter)"
+                        }
+                    }
+                ],
+                "output": {
+                    "body": "$(.getAppData.output.body)",
+                    "status": "$(.getAppData.output.status)"
+                },
+                "executors": [
+                    {
+                        "execute": "applm-sapcp:GetCfAppEnvironmentVariables:1",
+                        "input": {
+                            "resourceGroup": "$(.execution.metadata.tags.nodeName)",
+                            "password": "$(.execution.input.password)",
+                            "resourceName": "$(.execution.input.appName)",
+                            "region": "$(.execution.input.datacenter)",
+                            "user": "$(.execution.input.user)",
+                            "subAccount": "$(.execution.input.prefix)$(.execution.metadata.tags.nodeName)"
+                        },
+                        "alias": "getEnv",
+                        "progressMessage": null,
+                        "initialDelay": null,
+                        "pause": null,
+                        "when": null,
+                        "validate": null,
+                        "autoRetry": null,
+                        "repeat": null,
+                        "errorMessages": []
+                    },
+                    {
+                        "execute": "http-sapcp:HttpRequest:1",
+                        "input": {
+                            "password": "$(.execution.input.password)",
+                            "clientId": "$(.getEnv.output.variables.VCAP_SERVICES.xsuaa[0].credentials.clientid)",
+                            "tokenUrl": "$(.getEnv.output.variables.VCAP_SERVICES.xsuaa[0].credentials.url)/oauth/token?grant_type=password",
+                            "method": "GET",
+                            "clientSecret": "$(.getEnv.output.variables.VCAP_SERVICES.xsuaa[0].credentials.clientsecret)",
+                            "user": "$(.execution.input.user)",
+                            "url": "https://$(.execution.input.prefix)$(.execution.metadata.tags.nodeName)-$(.execution.metadata.tags.nodeName)-$(.execution.input.appName).cfapps.$(.regionData.name).hana.ondemand.com$(.execution.input.appPath)"
+                        },
+                        "alias": "getAppData",
+                        "progressMessage": null,
+                        "initialDelay": null,
+                        "pause": null,
+                        "when": null,
+                        "validate": {
+                            "semantic": "OR",
+                            "conditions": [
+                                {
+                                    "semantic": "AND",
+                                    "cases": [
+                                        {
+                                            "expression": "$(.getAppData.output.body | length > 0)",
+                                            "operator": "EQUALS",
+                                            "semantic": "OR",
+                                            "values": [
+                                                "true"
+                                            ]
+                                        },
+                                        {
+                                            "expression": "$(.getAppData.output.status)",
+                                            "operator": "EQUALS",
+                                            "semantic": "OR",
+                                            "values": [
+                                                "200"
+                                            ]
+                                        }
+                                    ]
+                                }
+                            ]
+                        },
+                        "autoRetry": null,
+                        "repeat": null,
+                        "errorMessages": [
+                            {
+                                "message": "Smoke Test Failed: No response",
+                                "when": {
+                                    "semantic": "OR",
+                                    "conditions": [
+                                        {
+                                            "semantic": "OR",
+                                            "cases": [
+                                                {
+                                                    "expression": "$(.getAppData.output.body | length > 0)",
+                                                    "operator": "EQUALS",
+                                                    "semantic": "OR",
+                                                    "values": [
+                                                        "false"
+                                                    ]
+                                                }
+                                            ]
+                                        }
+                                    ]
+                                }
+                            },
+                            {
+                                "message": "Smoke Test Failed: Status $(.getAppData.output.status)",
+                                "when": {
+                                    "semantic": "OR",
+                                    "conditions": [
+                                        {
+                                            "semantic": "OR",
+                                            "cases": [
+                                                {
+                                                    "expression": "$(.getAppData.output.status)",
+                                                    "operator": "NOT_EQUALS",
+                                                    "semantic": "OR",
+                                                    "values": [
+                                                        "200"
+                                                    ]
+                                                }
+                                            ]
+                                        }
+                                    ]
+                                }
+                            }
+                        ]
+                    }
+                ],
+                "listeners": []
+            },
+            "id": "dpe-<<<TENANT_ID>>>:SmokeTest:1",
+            "name": "SmokeTest",
+            "description": null,
+            "catalog": "dpe-<<<TENANT_ID>>>",
+            "version": 1,
+            "inputKeys": {
+                "password": {
+                    "type": "string",
+                    "sensitive": true,
+                    "required": false,
+                    "minSize": null,
+                    "maxSize": null,
+                    "minValue": null,
+                    "maxValue": null,
+                    "allowedValues": null,
+                    "allowedValuesFromInputKeys": null,
+                    "suggestedValues": null,
+                    "suggestedValuesFromInputKeys": null,
+                    "defaultValue": null,
+                    "defaultValueFromInput": {
+                        "inputReference": "dpe-<<<TENANT_ID>>>:dpe:1",
+                        "inputKey": "password"
+                    },
+                    "description": null
+                },
+                "prefix": {
+                    "type": "string",
+                    "sensitive": false,
+                    "required": false,
+                    "minSize": null,
+                    "maxSize": null,
+                    "minValue": null,
+                    "maxValue": null,
+                    "allowedValues": null,
+                    "allowedValuesFromInputKeys": null,
+                    "suggestedValues": null,
+                    "suggestedValuesFromInputKeys": null,
+                    "defaultValue": null,
+                    "defaultValueFromInput": {
+                        "inputReference": "dpe-<<<TENANT_ID>>>:dpe:1",
+                        "inputKey": "prefix"
+                    },
+                    "description": null
+                },
+                "appName": {
+                    "type": "string",
+                    "sensitive": false,
+                    "required": false,
+                    "minSize": null,
+                    "maxSize": null,
+                    "minValue": null,
+                    "maxValue": null,
+                    "allowedValues": null,
+                    "allowedValuesFromInputKeys": null,
+                    "suggestedValues": null,
+                    "suggestedValuesFromInputKeys": null,
+                    "defaultValue": null,
+                    "defaultValueFromInput": {
+                        "inputReference": "dpe-<<<TENANT_ID>>>:dpe:1",
+                        "inputKey": "appName"
+                    },
+                    "description": null
+                },
+                "datacenter": {
+                    "type": "string",
+                    "sensitive": false,
+                    "required": false,
+                    "minSize": null,
+                    "maxSize": null,
+                    "minValue": null,
+                    "maxValue": null,
+                    "allowedValues": null,
+                    "allowedValuesFromInputKeys": null,
+                    "suggestedValues": null,
+                    "suggestedValuesFromInputKeys": null,
+                    "defaultValue": null,
+                    "defaultValueFromInput": {
+                        "inputReference": "dpe-<<<TENANT_ID>>>:dpe:1",
+                        "inputKey": "datacenter"
+                    },
+                    "description": null
+                },
+                "user": {
+                    "type": "string",
+                    "sensitive": false,
+                    "required": false,
+                    "minSize": null,
+                    "maxSize": null,
+                    "minValue": null,
+                    "maxValue": null,
+                    "allowedValues": null,
+                    "allowedValuesFromInputKeys": null,
+                    "suggestedValues": null,
+                    "suggestedValuesFromInputKeys": null,
+                    "defaultValue": null,
+                    "defaultValueFromInput": {
+                        "inputReference": "dpe-<<<TENANT_ID>>>:dpe:1",
+                        "inputKey": "user"
+                    },
+                    "description": null
+                },
+                "appPath": {
+                    "type": "string",
+                    "sensitive": false,
+                    "required": false,
+                    "minSize": null,
+                    "maxSize": null,
+                    "minValue": null,
+                    "maxValue": null,
+                    "allowedValues": null,
+                    "allowedValuesFromInputKeys": null,
+                    "suggestedValues": null,
+                    "suggestedValuesFromInputKeys": null,
+                    "defaultValue": null,
+                    "defaultValueFromInput": {
+                        "inputReference": "dpe-<<<TENANT_ID>>>:dpe:1",
+                        "inputKey": "appPath"
+                    },
+                    "description": null
+                }
+            },
+            "outputKeys": {
+                "body": {
+                    "type": "string",
+                    "sensitive": false,
+                    "description": null
+                },
+                "status": {
+                    "type": "number",
+                    "sensitive": false,
+                    "description": null
+                }
+            },
+            "tags": {
+                "node": "",
+                "feature:priority": "medium"
+            }
+        }
+    ]
+}
